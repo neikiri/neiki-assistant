@@ -1,0 +1,37 @@
+{
+  "name": "neiki-assistant",
+  "version": "1.0.0",
+  "description": "Lightweight, framework-independent AI chatbot widget for websites and CMS systems",
+  "keywords": [
+    "chatbot",
+    "ai-assistant",
+    "chat-widget",
+    "web-components",
+    "vanilla-js"
+  ],
+  "scripts": {
+    "test": "node --check src/neiki-assistant.js && node --check src/i18n/en.js && node --check src/i18n/cs.js",
+    "build": "python3 minify.py"
+  },
+  "main": "dist/neiki-assistant.min.js",
+  "exports": {
+    ".": "./dist/neiki-assistant.min.js",
+    "./style": "./dist/neiki-assistant.min.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "style": "dist/neiki-assistant.min.css",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neikiri/neiki-assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/neikiri/neiki-assistant/issues"
+  },
+  "unpkg": "dist/neiki-assistant.min.js",
+  "jsdelivr": "dist/neiki-assistant.min.js",
+  "homepage": "https://github.com/neikiri/neiki-assistant#readme",
+  "author": "Jindřich Stoklasa <jindrichstoklasa1@gmail.com>",
+  "license": "MIT"
+}

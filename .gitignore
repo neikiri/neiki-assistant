@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Source design files
+*.psd
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.agents/
+
+# Logs
+*.log
+
+# Misc
+.env
+.env.local
+
+# Claude
+.claude/
+
+*.psd
+__pycache__
