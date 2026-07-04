@@ -14,6 +14,7 @@ const DEFAULT_ENDPOINT = '';
 const STORAGE_PREFIX = 'neiki-assistant:';
 const DEFAULT_MAX_HISTORY = 40;
 const MAX_SESSIONS = 30;
+let idCounter = 0;
 const SVG = {
   chat: '<svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" d="M2 22V4q0-.825.588-1.412T4 2h16q.825 0 1.413.588T22 4v12q0 .825-.587 1.413T20 18H6zm4-8h8v-2H6zm0-3h12V9H6zm0-3h12V6H6z"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.5em" height="1.5em"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
@@ -74,12 +75,13 @@ class MarkdownRenderer {
   renderText(text) {
     const paragraphs = escapeHtml(text).trim().split(/\n{2,}/).filter(Boolean);
     return paragraphs.map((paragraph) => {
-      if (/^(\s*[-*]\s+.+\n?)+$/.test(paragraph)) {
-        const items = paragraph.split('\n').map((line) => line.replace(/^\s*[-*]\s+/, '')).filter(Boolean);
+      const lines = paragraph.split('\n');
+      if (lines.every((line) => /^[ \t]*[-*][ \t]+\S.*$/.test(line))) {
+        const items = lines.map((line) => line.replace(/^[ \t]*[-*][ \t]+/, '')).filter(Boolean);
         return `<ul>${items.map((item) => `<li>${this.inline(item)}</li>`).join('')}</ul>`;
       }
-      if (/^(\s*\d+\.\s+.+\n?)+$/.test(paragraph)) {
-        const items = paragraph.split('\n').map((line) => line.replace(/^\s*\d+\.\s+/, '')).filter(Boolean);
+      if (lines.every((line) => /^[ \t]*\d+\.[ \t]+\S.*$/.test(line))) {
+        const items = lines.map((line) => line.replace(/^[ \t]*\d+\.[ \t]+/, '')).filter(Boolean);
         return `<ol>${items.map((item) => `<li>${this.inline(item)}</li>`).join('')}</ol>`;
       }
       return `<p>${this.inline(paragraph).replace(/\n/g, '<br>')}</p>`;
@@ -497,7 +499,15 @@ class NeikiAssistant extends HTMLElement {
   }
 
   generateId() {
-    return `s_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `s_${crypto.randomUUID()}`;
+    }
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const bytes = crypto.getRandomValues(new Uint32Array(2));
+      return `s_${Date.now().toString(36)}_${bytes[0].toString(36)}${bytes[1].toString(36)}`;
+    }
+    idCounter += 1;
+    return `s_${Date.now().toString(36)}_${idCounter.toString(36)}`;
   }
 
   async sendMessage(content) {
