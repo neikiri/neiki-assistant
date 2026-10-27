@@ -1,5 +1,6 @@
 import en from './i18n/en.js';
 import cs from './i18n/cs.js';
+import de from './i18n/de.js';
 
 // ====================================
 // NEIKI-ASSISTANT / CSS-INJECT
@@ -9,7 +10,7 @@ let NEIKI_ASSISTANT_CSS = '';
 // END CSS-INJECT
 // ====================================
 
-const LOCALES = { en, cs };
+const LOCALES = { en, cs, de };
 const DEFAULT_ENDPOINT = '';
 const STORAGE_PREFIX = 'neiki-assistant:';
 const DEFAULT_MAX_HISTORY = 40;
@@ -21,7 +22,12 @@ const SVG = {
   send: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.5em" height="1.5em"><path d="m5 12 14-7-4.8 14-2.6-5.7L5 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.5em" height="1.5em"><path d="M9 5h6m-8 4h10m-9 0 .7 10h6.6L16 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   history: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.5em" height="1.5em"><path d="M12 8v4l2.6 1.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 9A7.5 7.5 0 1 1 4 13.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.6 4.8v4.4H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  spark: '<svg xmlns="http://www.w3.org/2000/svg" width="1.8em" height="1.8em" viewBox="0 0 512 512"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="m320 192l-85.333-32L320 127.968l32-85.301l32.03 85.301L469.333 160l-85.303 32L352 277.333zM149.333 362.667L42.667 320l106.666-42.667L192 170.667l42.667 106.666L341.333 320l-106.666 42.667L192 469.333z"/></svg>'
+  spark: '<svg xmlns="http://www.w3.org/2000/svg" width="1.8em" height="1.8em" viewBox="0 0 512 512"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="m320 192l-85.333-32L320 127.968l32-85.301l32.03 85.301L469.333 160l-85.303 32L352 277.333zM149.333 362.667L42.667 320l106.666-42.667L192 170.667l42.667 106.666L341.333 320l-106.666 42.667L192 469.333z"/></svg>',
+  maximize: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.35em" height="1.35em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+  minimize: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.35em" height="1.35em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.2em" height="1.2em"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>',
+  arrowRight: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.2em" height="1.2em"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true" width="1.2em" height="1.2em"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
 const cssReady = NEIKI_ASSISTANT_CSS
@@ -73,17 +79,52 @@ class MarkdownRenderer {
   }
 
   renderText(text) {
-    const paragraphs = escapeHtml(text).trim().split(/\n{2,}/).filter(Boolean);
-    return paragraphs.map((paragraph) => {
+    const rawParagraphs = escapeHtml(text).trim().split(/\n{2,}/).filter(Boolean);
+    return rawParagraphs.map((paragraph) => {
       const lines = paragraph.split('\n');
+
+      // Headings (#, ##, ###)
+      if (lines.length === 1 && /^#{1,3}\s+\S.*$/.test(lines[0])) {
+        const level = lines[0].match(/^(#{1,3})\s+(.*)$/);
+        if (level) {
+          const tag = `h${level[1].length}`;
+          return `<${tag}>${this.inline(level[2])}</${tag}>`;
+        }
+      }
+
+      // Blockquote (> ...)
+      if (lines.every((line) => /^[ \t]*&gt;[ \t]?\S.*$/.test(line) || /^[ \t]*&gt;[ \t]?$/.test(line))) {
+        const items = lines.map((line) => line.replace(/^[ \t]*&gt;[ \t]?/, '')).filter(Boolean);
+        return `<blockquote>${items.map((item) => this.inline(item)).join('<br>')}</blockquote>`;
+      }
+
+      // Markdown Table (| Col 1 | Col 2 | ...)
+      if (lines.length >= 2 && lines.every((line) => /^[ \t]*\|.*\|[ \t]*$/.test(line))) {
+        const isSeparator = (line) => /^[ \t]*\|([ \t]*:?-+:?[ \t]*\|)+[ \t]*$/.test(line);
+        const sepIndex = lines.findIndex(isSeparator);
+        if (sepIndex > 0) {
+          const parseCells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => this.inline(c.trim()));
+          const headers = parseCells(lines[0]);
+          const bodyLines = lines.slice(sepIndex + 1);
+          const rows = bodyLines.map(parseCells);
+          const ths = headers.map((h) => `<th>${h}</th>`).join('');
+          const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
+          return `<div class="neiki-table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+        }
+      }
+
+      // Unordered list
       if (lines.every((line) => /^[ \t]*[-*][ \t]+\S.*$/.test(line))) {
         const items = lines.map((line) => line.replace(/^[ \t]*[-*][ \t]+/, '')).filter(Boolean);
         return `<ul>${items.map((item) => `<li>${this.inline(item)}</li>`).join('')}</ul>`;
       }
+
+      // Ordered list
       if (lines.every((line) => /^[ \t]*\d+\.[ \t]+\S.*$/.test(line))) {
         const items = lines.map((line) => line.replace(/^[ \t]*\d+\.[ \t]+/, '')).filter(Boolean);
         return `<ol>${items.map((item) => `<li>${this.inline(item)}</li>`).join('')}</ol>`;
       }
+
       return `<p>${this.inline(paragraph).replace(/\n/g, '<br>')}</p>`;
     }).join('');
   }
@@ -93,6 +134,7 @@ class MarkdownRenderer {
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/~~([^~]+)~~/g, '<del>$1</del>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_all, label, url) => {
         return `<a href="${escapeHtml(sanitizeUrl(url))}" target="_blank" rel="noopener noreferrer">${label}</a>`;
       });
@@ -133,7 +175,8 @@ class NeikiAssistant extends HTMLElement {
       'position',
       'storage-key',
       'max-history',
-      'open'
+      'open',
+      'suggestions'
     ];
   }
 
@@ -144,8 +187,10 @@ class NeikiAssistant extends HTMLElement {
     this.sessions = [];
     this.activeSessionId = null;
     this.isOpen = false;
+    this.isMaximized = false;
     this.isHistoryOpen = false;
     this.isSending = false;
+    this.dynamicSuggestions = [];
     this.abortController = null;
     this.boundOnSubmit = this.onSubmit.bind(this);
     this.boundOnInput = this.onInput.bind(this);
@@ -163,6 +208,7 @@ class NeikiAssistant extends HTMLElement {
     }
     this.renderMessages();
     this.renderHistoryPanel();
+    this.renderSuggestions();
     this.bindEvents();
     if (this.hasAttribute('open')) this.open();
   }
@@ -175,6 +221,7 @@ class NeikiAssistant extends HTMLElement {
   attributeChangedCallback(name) {
     if (!this.shadowRoot?.innerHTML) return;
     if (name === 'open') this.syncOpenAttribute();
+    if (name === 'suggestions') this.renderSuggestions();
     this.applyAttributes();
     this.updateStaticText();
     this.renderMessages();
@@ -187,7 +234,7 @@ class NeikiAssistant extends HTMLElement {
   }
 
   get labels() {
-    return { ...LOCALES.en, ...LOCALES[this.locale] };
+    return { ...LOCALES.en, ...(LOCALES[this.locale] || {}) };
   }
 
   get storageKey() {
@@ -211,6 +258,20 @@ class NeikiAssistant extends HTMLElement {
     return this.getAttribute(name) || this.labels[name] || '';
   }
 
+  getSuggestions() {
+    if (this.dynamicSuggestions && this.dynamicSuggestions.length) {
+      return this.dynamicSuggestions;
+    }
+    const attr = this.getAttribute('suggestions');
+    if (!attr) return [];
+    try {
+      const parsed = JSON.parse(attr);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return attr.split(';').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+
   renderShell() {
     this.shadowRoot.innerHTML = `
       <style></style>
@@ -223,6 +284,7 @@ class NeikiAssistant extends HTMLElement {
               <p class="neiki-subtitle"></p>
             </div>
             <div class="neiki-actions">
+              <button class="neiki-icon-button neiki-maximize" type="button"></button>
               <button class="neiki-icon-button neiki-history" type="button"></button>
               <button class="neiki-icon-button neiki-clear" type="button"></button>
               <button class="neiki-icon-button neiki-close" type="button"></button>
@@ -230,6 +292,7 @@ class NeikiAssistant extends HTMLElement {
           </header>
           <div class="neiki-history-panel"></div>
           <div class="neiki-messages" role="log" aria-live="polite"></div>
+          <div class="neiki-suggestions" style="display:none;"></div>
           <form class="neiki-composer">
             <div class="neiki-input-wrap">
               <textarea class="neiki-input" rows="1"></textarea>
@@ -254,6 +317,7 @@ class NeikiAssistant extends HTMLElement {
     this.$('.neiki-launcher').addEventListener('click', () => this.toggle());
     this.$('.neiki-close').addEventListener('click', () => this.close());
     this.$('.neiki-clear').addEventListener('click', () => this.clear());
+    this.$('.neiki-maximize').addEventListener('click', () => this.toggleMaximize());
     this.$('.neiki-history').addEventListener('click', (event) => {
       event.stopPropagation();
       this.toggleHistory();
@@ -272,6 +336,12 @@ class NeikiAssistant extends HTMLElement {
       }
       const select = event.target.closest('.neiki-history-select');
       if (select) this.selectSession(select.dataset.session);
+    });
+    this.$('.neiki-suggestions').addEventListener('click', (event) => {
+      const chip = event.target.closest('.neiki-suggestion-chip');
+      if (!chip) return;
+      const text = chip.dataset.suggestion;
+      if (text) this.sendMessage(text);
     });
     this.$('.neiki-composer').addEventListener('submit', this.boundOnSubmit);
     this.$('.neiki-input').addEventListener('input', this.boundOnInput);
@@ -295,16 +365,26 @@ class NeikiAssistant extends HTMLElement {
     this.$('.neiki-root')?.classList.toggle('is-open', this.isOpen);
   }
 
+  toggleMaximize() {
+    this.isMaximized = !this.isMaximized;
+    this.$('.neiki-window')?.classList.toggle('is-maximized', this.isMaximized);
+    this.updateStaticText();
+    this.scrollToBottom();
+  }
+
   updateStaticText() {
     this.$('.neiki-title').textContent = this.option('title');
     this.$('.neiki-subtitle').textContent = this.option('subtitle');
     this.$('.neiki-input').placeholder = this.option('placeholder');
-    this.$('.neiki-send').title = this.labels.send;
-    this.$('.neiki-send').setAttribute('aria-label', this.labels.send);
-    this.$('.neiki-send').innerHTML = SVG.send;
+    this.$('.neiki-send').title = this.isSending ? this.labels.stop : this.labels.send;
+    this.$('.neiki-send').setAttribute('aria-label', this.isSending ? this.labels.stop : this.labels.send);
+    this.$('.neiki-send').innerHTML = this.isSending ? SVG.stop : SVG.send;
     this.$('.neiki-clear').title = this.labels.clear;
     this.$('.neiki-clear').setAttribute('aria-label', this.labels.clear);
     this.$('.neiki-clear').innerHTML = SVG.trash;
+    this.$('.neiki-maximize').title = this.isMaximized ? this.labels.minimize : this.labels.maximize;
+    this.$('.neiki-maximize').setAttribute('aria-label', this.isMaximized ? this.labels.minimize : this.labels.maximize);
+    this.$('.neiki-maximize').innerHTML = this.isMaximized ? SVG.minimize : SVG.maximize;
     this.$('.neiki-history').title = this.labels.history;
     this.$('.neiki-history').setAttribute('aria-label', this.labels.history);
     this.$('.neiki-history').innerHTML = SVG.history;
@@ -314,6 +394,22 @@ class NeikiAssistant extends HTMLElement {
     this.$('.neiki-launcher').title = this.isOpen ? this.labels.close : this.labels.open;
     this.$('.neiki-launcher').setAttribute('aria-label', this.isOpen ? this.labels.close : this.labels.open);
     this.$('.neiki-footer').textContent = this.labels.poweredBy;
+  }
+
+  renderSuggestions() {
+    const container = this.$('.neiki-suggestions');
+    if (!container) return;
+    const items = this.getSuggestions();
+    if (!items.length) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+    container.style.display = 'flex';
+    container.innerHTML = `
+      <div class="neiki-suggestions-label">${escapeHtml(this.labels.suggestions)}</div>
+      ${items.map((s) => `<button type="button" class="neiki-suggestion-chip" data-suggestion="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+    `;
   }
 
   renderMessages() {
@@ -328,8 +424,29 @@ class NeikiAssistant extends HTMLElement {
       const retry = role === 'error' && message.retry
         ? `<button class="neiki-copy" type="button" data-retry="${index}">${escapeHtml(this.labels.retry)}</button>`
         : '';
+
+      let actionsHtml = '';
+      if (Array.isArray(message.actions) && message.actions.length) {
+        actionsHtml = message.actions.map((action, actionIdx) => {
+          const label = escapeHtml(action.label || action.title || action.type || 'Action');
+          const btnText = escapeHtml(action.buttonText || (action.type === 'navigate' ? this.labels.open : this.labels.executeAction));
+          const isExecuted = Boolean(action.executed);
+          const btnClass = isExecuted ? 'neiki-action-btn is-executed' : 'neiki-action-btn';
+          const btnContent = isExecuted
+            ? `${SVG.check} <span>${escapeHtml(this.labels.actionExecuted)}</span>`
+            : `<span>${btnText}</span> ${SVG.arrowRight}`;
+          return `<div class="neiki-action-card">
+            <div class="neiki-action-info">
+              <span class="neiki-action-icon">${SVG.spark}</span>
+              <span>${label}</span>
+            </div>
+            <button type="button" class="${btnClass}" data-msg-index="${index}" data-action-index="${actionIdx}" ${isExecuted ? 'disabled' : ''}>${btnContent}</button>
+          </div>`;
+        }).join('');
+      }
+
       return `<article class="neiki-message is-${role}" data-index="${index}">
-        <div class="neiki-bubble">${renderer.render(message.content)}${retry}</div>
+        <div class="neiki-bubble">${renderer.render(message.content)}${actionsHtml}${retry}</div>
       </article>`;
     }).join('');
     this.scrollToBottom();
@@ -354,6 +471,7 @@ class NeikiAssistant extends HTMLElement {
     this.$('.neiki-root').classList.add('is-open');
     this.setAttribute('open', '');
     this.updateStaticText();
+    this.dispatchEvent(new CustomEvent('neiki:open'));
     setTimeout(() => this.$('.neiki-input')?.focus(), 80);
   }
 
@@ -363,6 +481,7 @@ class NeikiAssistant extends HTMLElement {
     this.removeAttribute('open');
     this.updateStaticText();
     this.closeHistory();
+    this.dispatchEvent(new CustomEvent('neiki:close'));
   }
 
   toggle() {
@@ -523,6 +642,10 @@ class NeikiAssistant extends HTMLElement {
 
   onSubmit(event) {
     event.preventDefault();
+    if (this.isSending) {
+      this.abortController?.abort();
+      return;
+    }
     const input = this.$('.neiki-input');
     const value = input.value;
     input.value = '';
@@ -542,6 +665,24 @@ class NeikiAssistant extends HTMLElement {
   }
 
   onMessageClick(event) {
+    const actionBtn = event.target.closest('.neiki-action-btn:not(.is-executed)');
+    if (actionBtn) {
+      const msgIdx = Number(actionBtn.dataset.msgIndex);
+      const actIdx = Number(actionBtn.dataset.actionIndex);
+      const action = this.messages[msgIdx]?.actions?.[actIdx];
+      if (action) {
+        action.executed = true;
+        this.persist();
+        this.renderMessages();
+        this.dispatchEvent(new CustomEvent('neiki:action', {
+          detail: action,
+          bubbles: true,
+          composed: true
+        }));
+      }
+      return;
+    }
+
     const copy = event.target.closest('.neiki-copy');
     if (!copy) return;
     const retryIndex = copy.dataset.retry;
@@ -564,7 +705,14 @@ class NeikiAssistant extends HTMLElement {
     }
 
     this.isSending = true;
-    this.$('.neiki-send').disabled = true;
+    const sendBtn = this.$('.neiki-send');
+    if (sendBtn) {
+      sendBtn.classList.add('is-stop');
+      sendBtn.innerHTML = SVG.stop;
+      sendBtn.title = this.labels.stop;
+      sendBtn.setAttribute('aria-label', this.labels.stop);
+      sendBtn.disabled = false;
+    }
     this.abortController = new AbortController();
     this.renderTyping();
 
@@ -588,7 +736,40 @@ class NeikiAssistant extends HTMLElement {
       } else {
         const data = await response.json();
         const content = data.reply || data.message || data.content || data.text || '';
-        this.messages.push({ role: 'assistant', content: String(content || this.labels.error) });
+        let actions = Array.isArray(data.actions) ? data.actions : [];
+        let cleanContent = String(content || '');
+
+        const actionBlockRegex = /```(?:cms-action|action)\s*([\s\S]*?)```/g;
+        let actionMatch;
+        while ((actionMatch = actionBlockRegex.exec(cleanContent))) {
+          try {
+            const parsed = JSON.parse(actionMatch[1].trim());
+            if (Array.isArray(parsed)) actions.push(...parsed);
+            else if (parsed && typeof parsed === 'object') actions.push(parsed);
+          } catch {}
+        }
+        cleanContent = cleanContent.replace(actionBlockRegex, '').trim();
+
+        if (Array.isArray(data.suggestions) && data.suggestions.length) {
+          this.dynamicSuggestions = data.suggestions;
+          this.renderSuggestions();
+        }
+
+        const assistantMsg = { role: 'assistant', content: String(cleanContent || this.labels.error) };
+        if (actions.length) assistantMsg.actions = actions;
+        this.messages.push(assistantMsg);
+
+        // Auto execute if action has autoExecute flag
+        actions.forEach((act) => {
+          if (act && act.autoExecute) {
+            act.executed = true;
+            this.dispatchEvent(new CustomEvent('neiki:action', {
+              detail: act,
+              bubbles: true,
+              composed: true
+            }));
+          }
+        });
       }
 
       this.trimHistory();
@@ -600,7 +781,13 @@ class NeikiAssistant extends HTMLElement {
     } finally {
       this.removeTyping();
       this.isSending = false;
-      this.$('.neiki-send').disabled = false;
+      if (sendBtn) {
+        sendBtn.classList.remove('is-stop');
+        sendBtn.innerHTML = SVG.send;
+        sendBtn.title = this.labels.send;
+        sendBtn.setAttribute('aria-label', this.labels.send);
+        sendBtn.disabled = false;
+      }
       this.abortController = null;
     }
   }

@@ -20,5 +20,11 @@ export default {
   error: 'Something went wrong. Please try again.',
   empty: 'Start a conversation whenever you are ready.',
   networkError: 'The assistant could not reach the backend.',
-  poweredBy: 'AI assistant'
+  poweredBy: 'AI assistant',
+  maximize: 'Maximize window',
+  minimize: 'Restore size',
+  stop: 'Stop generating',
+  actionExecuted: 'Executed',
+  executeAction: 'Execute',
+  suggestions: 'Suggested questions'
 };

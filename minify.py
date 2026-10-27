@@ -16,7 +16,7 @@ JS_OUTPUT = os.path.join(OUTPUT_DIR, "neiki-assistant.min.js")
 CSS_OUTPUT = os.path.join(OUTPUT_DIR, "neiki-assistant.min.css")
 JS_TEMP = os.path.join(OUTPUT_DIR, "neiki-assistant.temp.js")
 
-BANNER = "/* neiki-assistant 1.0.0 | MIT */\n"
+BANNER = "/* neiki-assistant 1.1.0 | MIT */\n"
 
 
 def minify_css(css):

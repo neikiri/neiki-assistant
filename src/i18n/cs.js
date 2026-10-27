@@ -20,5 +20,11 @@ export default {
   error: 'Něco se nepovedlo. Zkuste to prosím znovu.',
   empty: 'Začněte konverzaci, až budete připraveni.',
   networkError: 'Asistent se nemohl spojit s backendem.',
-  poweredBy: 'AI asistent'
+  poweredBy: 'AI asistent',
+  maximize: 'Zvětšit okno',
+  minimize: 'Obnovit velikost',
+  stop: 'Zastavit generování',
+  actionExecuted: 'Provedeno',
+  executeAction: 'Provést',
+  suggestions: 'Doporučené dotazy'
 };
